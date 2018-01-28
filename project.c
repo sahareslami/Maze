@@ -52,7 +52,7 @@ void destroy_unistall();
 int cnt_of_enemy();
 void save_score();
 void open_score(int score_now);
-void show_score();
+void show_score(int score_now);
 void sort(int a,int size);
 void swap(int *a,int *b);
 
@@ -168,23 +168,9 @@ int init(){
 
 }
 void wellcome(){
-
-	/*ALLEGRO_FONT *arial = al_load_font("arial.ttf" , 100 , 0);
-	ALLEGRO_FONT *papyrus = al_load_font("PAPYRUS.TTF" , 100 , 0);
-
-	al_clear_to_color(al_map_rgb(12,12 ,12));
-	al_draw_text(arial , al_map_rgb(255 , 155 ,149) , W / 2 , H / 2 , 0 , "wellcome");
-	al_flip_display();
-	//al_rest(2.0);
-
-	al_clear_to_color(al_map_rgb(12 , 12, 12));
-	
-	al_flip_display();
-	al_rest(2.0);*/
 	al_draw_scaled_bitmap(image_background , 0 , 0 , image_width_background , image_height_background , 0  , 0 , W  , H ,  0);
 	al_flip_display();
 	al_rest(1.5);
-
 }
 void read_map(){
 	scanf("%d %d\n", &n , &m);
@@ -228,7 +214,6 @@ void read_map(){
 void draw_map(ENEMIES enemy[],int E){	
 	al_clear_to_color(al_map_rgb(10 , 10 , 10));
 	al_draw_rectangle(st_x , st_y , st_x + w  , st_y + h  , al_map_rgb(100 , 100 , 100) , l_line);
-	printf("%d %d %d %d %d %d\n",w,h,W,H,st_x,st_y);
 	for(int i = 1 ; i < n  ; i++){
 		int st_line_y = st_y + i * (s_cell + l_line);
 		al_draw_line(st_x , st_line_y , st_x + w , st_line_y  , al_map_rgb( 200 , 200 , 200) , l_line);
@@ -253,10 +238,8 @@ void draw_map(ENEMIES enemy[],int E){
 		}
 	}
 	al_draw_scaled_bitmap(image_player , 0 , 0 , image_width_player , image_height_player , st_x + l_line  , st_y + l_line , s_cell  , s_cell ,  0);
-	for(int i = 0 ; i < E ; i++){
-			printf("gosale%d %d\n",enemy[i].x,enemy[i].y);
+	for(int i = 0 ; i < E ; i++)
 			draw_enemy(&enemy[i],i);
-	}
 	al_flip_display();
 }
 void back_screen(){
@@ -287,16 +270,19 @@ void back_screen(){
 	}
 }
 void player_move_keyboard(PLAYER *player,ENEMIES enemy[],int size){
-	int redraw = 0;
 	int done = 0;
 	int mve = 0;
+	int number_of_step = 0;
 	al_install_keyboard();
 	event_queue = al_create_event_queue();
 	al_register_event_source(event_queue , al_get_keyboard_event_source());
 	al_register_event_source(event_queue , al_get_display_event_source(display));
 	while(!done){
+		printf("%d \n",player->score);
 		ALLEGRO_EVENT ev;
+
 		al_wait_for_event(event_queue , &ev);
+
 		if(ev.type == ALLEGRO_EVENT_DISPLAY_CLOSE)
 					done = 1;
 		else if(ev.type == ALLEGRO_EVENT_KEY_DOWN){
@@ -316,15 +302,14 @@ void player_move_keyboard(PLAYER *player,ENEMIES enemy[],int size){
 			}
 			move_enemy(enemy,size);
 			if(!mve){
-				player->score += (N * 1000) + (E * 500);
+				(player->score) += (n * 1000) + (E * 500);
 				mve = 1;
 			}
 		}
+
+		///lose condition
 		for(int i = 0 ; i < size ; i++){
 			if((enemy[i].x == player->x &&  enemy[i].y == player->y) || (player->R_move <= 0)){
-			 	/*al_clear_to_color(al_map_rgb(100 , 30 , 30));
-				ALLEGRO_FONT *arial = al_load_font("arial.ttf" , 60 , 0);
-				al_draw_text(arial , al_map_rgb(255 , 155 ,149) , W / 2 , H / 2 , 0 , "LOSE");*/
 				player->score = 0;
 				al_play_sample(voice_fail , 1 , 0 , 1 , ALLEGRO_PLAYMODE_ONCE , NULL);
 				al_draw_scaled_bitmap(image_over , 0 , 0 , image_width_over , image_height_over , 0  , 0, W , H ,  0);
@@ -334,13 +319,11 @@ void player_move_keyboard(PLAYER *player,ENEMIES enemy[],int size){
 				return;
 			}
 		}
+
 		int x_map,y_map;
 		convert_display_map(player->x,player->y,&x_map,&y_map);
-		back_screen();
+		//win condition
 		if(x_map == 2 * n - 1 && y_map == 2 * m - 1){
-			/*al_clear_to_color(al_map_rgb(30 , 30 , 100));
-			ALLEGRO_FONT *arial = al_load_font("arial.ttf" , 60 , 0);
-			al_draw_text(arial , al_map_rgb(255 , 155 ,149) , W / 2 , H / 2 , 0 , "WIN");*/
 			al_play_sample(voice_win , 1 , 0 , 1 , ALLEGRO_PLAYMODE_ONCE , NULL);
 			al_draw_scaled_bitmap(image_win , 0 , 0 , image_width_win , image_height_win , 0  , 0, W , H ,  0);
 			al_flip_display();
@@ -348,6 +331,9 @@ void player_move_keyboard(PLAYER *player,ENEMIES enemy[],int size){
 			al_rest(4.0);
 			return;
 		}
+
+
+		back_screen();
 		for(int i = 0 ; i < size ;i++)
 				draw_enemy(&enemy[i],i);
 		draw_player(player);
@@ -626,7 +612,6 @@ void sort(int a,int size){
 					swap(&scoreboard[i],&scoreboard[j]);
 }
 void open_score(int score_now){
-	printf("mama\n");
 	int i = 0;
 	in_score = fopen("score.txt" , "r");
 	if (in_score == NULL){
@@ -638,15 +623,19 @@ void open_score(int score_now){
     }
     fclose(in_score);
     sort(score_now , size_score);
-    show_score();
+    show_score(score_now);
 
 }
-void show_score(){
-	int dis_between_line = H / size_score;
+void show_score(int score_now){
+	int dis_between_line = H / (size_score + 1);
 	ALLEGRO_FONT *arial = al_load_font("arial.ttf" , 60 , 0);
+
 	al_clear_to_color(al_map_rgb(0 , 0 , 0));
-	for(int i = 0 ; i < size_score ; i++)
-		al_draw_textf(arial , al_map_rgb(245 , 189 , 74) ,W / 2 , dis_between_line * i , ALLEGRO_ALIGN_CENTER , "score %i = %i" , i , scoreboard[i]);
+
+	al_draw_textf(arial , al_map_rgb(245 , 189 , 74) ,W / 2 , 0 , ALLEGRO_ALIGN_CENTER , "YOUR SCORE = %i" , score_now);
+
+	for(int i = 1 ; i <= size_score ; i++)
+		al_draw_textf(arial , al_map_rgb(245 , 189 , 74) ,W / 2 , dis_between_line * i , ALLEGRO_ALIGN_CENTER , "SCORE %i = %i" , i , scoreboard[i - 1]);
 
 	al_flip_display();
 	al_clear_to_color(al_map_rgb(0 , 0 ,0));
@@ -682,6 +671,8 @@ test #2;
 ._._. ._.
 | . . . |
 ._._._._.
+
+
 */
 
 
