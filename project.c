@@ -5,6 +5,7 @@
 #include <allegro5/allegro_font.h>
 #include <allegro5/allegro_ttf.h>
 #include <allegro5/allegro_primitives.h>
+#include <allegro5/allegro_image.h>
 #include "object.h"
 
 #define MAXN 1000
@@ -40,7 +41,8 @@ void call_enemy(ENEMIES enemy[],int size);
 void init_enemy(ENEMIES *enemy);
 void draw_enemy(ENEMIES *enemy);
 void move_enemy(ENEMIES enemy[],int size);
-int make_random(int s,int e);
+int make_random(int min,int max);
+void init_image();
 //void detection();
 
 
@@ -52,6 +54,7 @@ int make_random(int s,int e);
 ALLEGRO_DISPLAY *display = NULL;
 ALLEGRO_EVENT_QUEUE *event_queue = NULL;
 ALLEGRO_TIMER *timer = NULL;
+ALLEGRO_BITMAP *image = NULL;
 
 int cnt_of_move; // player should win in at last cnt_of_move step
 int n,m,map[MAXN][MAXN] = {0};  // n * m is size of map in real
@@ -61,15 +64,25 @@ int s_cell = 100 , l_line = 6; // size of cell in map is s_cell * s_cell , lengt
 int st_x , st_y; // start point of map in allegro display
 int w,h; // w * h is the size of map in allegro display
 int FPS = 60; // frames per second
+int image_width,image_height;
 
 int main(void){
-	PLAYER player;
+	PLAYER player; 
 	ENEMIES enemy[E];
+	al_init_font_addon();
+	al_init_ttf_addon();
+	al_init_image_addon();
 
 	read_map();
-	//wellcome();
 	if(!init())
 		return -1;
+	image = al_load_bitmap("P.jpg");
+
+	image_width = al_get_bitmap_width(image);
+	image_height = al_get_bitmap_height(image);
+
+	//wellcome();
+	
 	draw_map();
 	call_enemy(enemy , E);
 	draw_player(&player);
@@ -78,6 +91,7 @@ int main(void){
 	//player_move_mouse();
 	al_destroy_display(display);
 	al_rest(12.0);
+	al_destroy_bitmap(image);
 	return 0;
 }
 int init(){
@@ -96,21 +110,20 @@ int init(){
 
 }
 void wellcome(){
-	al_init_font_addon();
-	al_init_ttf_addon();
+
 	ALLEGRO_FONT *arial = al_load_font("arial.ttf" , 100 , 0);
 	ALLEGRO_FONT *papyrus = al_load_font("PAPYRUS.TTF" , 100 , 0);
 
-	al_clear_to_color(al_map_rgb(12,12 ,12));
+	/*al_clear_to_color(al_map_rgb(12,12 ,12));
 	al_draw_text(arial , al_map_rgb(255 , 155 ,149) , W / 2 , H / 2 , 0 , "wellcome");
 	al_flip_display();
-	al_rest(2.0);
+	//al_rest(2.0);
 
 	al_clear_to_color(al_map_rgb(12 , 12, 12));
 	
 	al_draw_text(arial , al_map_rgb(0 , 0 ,149) , W / 2 , H / 2 , 0 , "to my game");
 	al_flip_display();
-	al_rest(2.0);
+	al_rest(2.0);*/
 }
 void read_map(){
 	scanf("%d %d\n", &n , &m);
@@ -220,13 +233,11 @@ void back_screen(){
 void player_move_keyboard(PLAYER *player,ENEMIES enemy[],int size){
 	int redraw = 0;
 	int done = 0;
+	int mve = 0;
 	al_install_keyboard();
 	event_queue = al_create_event_queue();
-	timer = al_create_timer(1.0 / FPS);
 	al_register_event_source(event_queue , al_get_keyboard_event_source());
 	al_register_event_source(event_queue , al_get_display_event_source(display));
-	al_register_event_source(event_queue , al_get_timer_event_source(timer));
-	al_start_timer(timer);
 	while(!done){
 		ALLEGRO_EVENT ev;
 		al_wait_for_event(event_queue , &ev);
@@ -247,11 +258,32 @@ void player_move_keyboard(PLAYER *player,ENEMIES enemy[],int size){
 					move_right(player);
 					break;
 			}
+			move_enemy(enemy,size);
 		}
-		move_enemy(enemy,size);
-		draw_player(player);
+		if(enemy->x == player->x &&  enemy->y == player->y){
+			 al_clear_to_color(al_map_rgb(100 , 30 , 30));
+				ALLEGRO_FONT *arial = al_load_font("arial.ttf" , 60 , 0);
+				al_draw_text(arial , al_map_rgb(255 , 155 ,149) , W / 2 , H / 2 , 0 , "LOSE");
+				al_flip_display();
+				al_clear_to_color(al_map_rgb(100 , 30 , 30));
+				al_rest(2.0);
+				return;
+		}
+		int x_map,y_map;
+		convert_display_map(player->x,player->y,&x_map,&y_map);
+		if(x_map == 2 * n - 1 && y_map == 2 * m - 1){
+			al_clear_to_color(al_map_rgb(30 , 30 , 100));
+			ALLEGRO_FONT *arial = al_load_font("arial.ttf" , 60 , 0);
+			al_draw_text(arial , al_map_rgb(255 , 155 ,149) , W / 2 , H / 2 , 0 , "WIN");
+			al_flip_display();
+			al_clear_to_color(al_map_rgb(30 , 30 , 100));
+			al_rest(2.0);
+			return;
+		}
 		for(int i = 0 ; i < size ;i++)
-			draw_enemy(&enemy[i]);
+				draw_enemy(&enemy[i]);
+
+		draw_player(player);
 		al_flip_display();
 		back_screen();
 	}
@@ -288,14 +320,14 @@ void init_player(PLAYER *player){
 void move_up(PLAYER *player){
 	int x_map , y_map;
 	convert_display_map(player->x , player->y , &x_map , &y_map);
-	printf("UP%d %d %d %d %d %d %d %d %d\n",st_x,st_y,player->x,player->y,x_map,y_map,x_map,y_map - 1,map[x_map][y_map - 1]);
+	//printf("UP%d %d %d %d %d %d %d %d %d\n",st_x,st_y,player->x,player->y,x_map,y_map,x_map,y_map - 1,map[x_map][y_map - 1]);
 	if(map[x_map - 1][y_map] == 0)
 			player->y -= (s_cell + l_line);
 }
 void move_down(PLAYER *player){
 	int x_map , y_map;
 	convert_display_map(player->x , player->y , &x_map , &y_map);
-	printf("DOWN%d %d %d %d %d %d %d %d %d\n",st_x,st_y,player->x,player->y,x_map,y_map,x_map + 1,y_map,map[x_map][y_map + 1]);
+	//printf("DOWN%d %d %d %d %d %d %d %d %d\n",st_x,st_y,player->x,player->y,x_map,y_map,x_map + 1,y_map,map[x_map][y_map + 1]);
 	if(map[x_map + 1][y_map] == 0)
 			player->y += (s_cell + l_line);
 
@@ -303,14 +335,14 @@ void move_down(PLAYER *player){
 void move_right(PLAYER *player){
 	int x_map , y_map;
 	convert_display_map(player->x , player->y , &x_map , &y_map);
-	printf("RIGHT%d %d %d %d %d %d %d %d %d\n",st_x,st_y,player->x,player->y,x_map,y_map,x_map,y_map + 1,map[x_map][y_map + 1]);
+	//printf("RIGHT%d %d %d %d %d %d %d %d %d\n",st_x,st_y,player->x,player->y,x_map,y_map,x_map,y_map + 1,map[x_map][y_map + 1]);
 	if(map[x_map][y_map + 1] == 0)
 			player->x += (s_cell + l_line);
 }
 void move_left(PLAYER *player){
 	int x_map , y_map;
 	convert_display_map(player->x , player->y , &x_map , &y_map);
-	printf("LEFT%d %d %d %d %d %d %d %d %d\n",st_x,st_y,player->x,player->y,x_map,y_map,x_map,y_map - 1,map[x_map][y_map - 1]);
+	//printf("LEFT%d %d %d %d %d %d %d %d %d\n",st_x,st_y,player->x,player->y,x_map,y_map,x_map,y_map - 1,map[x_map][y_map - 1]);
 	if(map[x_map][y_map - 1] == 0)
 			player->x -= (s_cell + l_line);
 
@@ -324,16 +356,20 @@ void convert_map_display(int x_map,int y_map,int *x_display , int *y_display){
 	*y_display = st_y + (s_cell + l_line) * y_map;
 }
 void draw_player(PLAYER *player){
-	al_draw_filled_circle(player->x + 50 , player->y + 50 , 50 , al_map_rgb(56, 45 , 90));
+	//al_draw_filled_circle(player->x + 50 , player->y + 50 , 50 , al_map_rgb(56, 45 , 90));
+	al_draw_scaled_bitmap(image, 0 , 0 , image_width , image_height, player->x  , player->y ,(player->x) + (s_cell / 2) , (player->y) + (s_cell / 2) ,  0);
 }
-int make_random(int s,int e){
-	// this function make a random natural number in [s , e];	
-	int x = rand() / RAND_MAX;
-	x =  x * (e - s + 1) + s;
-	x = floor(x);
-	x = (x == e + 1) ? e : x;
-	return x;
-			
+int make_random(int min,int max){
+    int r;
+    int range = 1 + max - min;
+    int buckets = RAND_MAX / range;
+    int limit = buckets * range;
+    do
+    {
+        r = rand();
+    } while (r >= limit);
+
+    return min + (r / buckets);
 }
 void call_enemy(ENEMIES enemy[] , int size){
 	for(int i = 0 ; i < size ; i++){
@@ -344,6 +380,14 @@ void call_enemy(ENEMIES enemy[] , int size){
 void init_enemy(ENEMIES *enemy){
 		enemy->x = make_random(0 , n - 1);
 		enemy->y = make_random(0 , m - 1);
+		if(enemy->x == 0 && enemy->y == 0){
+			enemy->x = (n / 2);
+			enemy->y = (m / 2);
+		}
+		if(enemy->x == n && enemy->y == m){
+			enemy->x = (n / 2);
+			enemy->y = (m / 2);
+		}
 		enemy->x = enemy->x * 2 + 1;
 		enemy->y = enemy->y * 2 + 1;
 		if(map[(enemy->x) - 1][(enemy->y)] == 0)
@@ -398,21 +442,32 @@ int move_left_enemy(ENEMIES *enemy){
 }
 void move_enemy(ENEMIES enemy[] , int size){
 	for(int i = 0 ; i < size ; i++){
-		if(enemy[i].D == up)
-			if(move_up_enemy(&enemy[i])== 0)
-					move_down_enemy(&enemy[i]);
-		if(enemy[i].D == down)
-			if(move_down_enemy(&enemy[i])== 0)
-					move_up_enemy(&enemy[i]);
-		if(enemy[i].D == right)
-			if(move_right_enemy(&enemy[i])== 0)
-					move_left_enemy(&enemy[i]);
-		if(enemy[i].D == left)
-				if(move_left_enemy(&enemy[i])== 0)
-					move_right_enemy(&enemy[i]);
+		if(enemy[i].D == up){
+			if(move_up_enemy(&enemy[i])== 0){
+				move_down_enemy(&enemy[i]);
+				enemy[i].D = down;
+			}
+		}
+		else if(enemy[i].D == down){
+			if(move_down_enemy(&enemy[i])== 0){
+				move_up_enemy(&enemy[i]);
+				enemy[i].D = up;
+			}
+		}
+		else if(enemy[i].D == right){
+			if(move_right_enemy(&enemy[i])== 0){
+				move_left_enemy(&enemy[i]);
+				enemy[i].D = left;
+			}
+		}
+		else if(enemy[i].D == left){
+			if(move_left_enemy(&enemy[i]) == 0){
+				move_right_enemy(&enemy[i]);
+				enemy[i].D = right;
+			}
+		}
 	}
 }
-
 
 /*
 sample tests 
